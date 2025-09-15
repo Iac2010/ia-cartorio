@@ -9,6 +9,7 @@ import { CostCenterDashboard } from './components/Dashboard';
 import { ProjectTimeline } from './components/ProjectStatus';
 import KanbanBoard from './components/KanbanBoard';
 import PointDetailsModal from './components/PointDetailsModal';
+import TaskDetailsModal from './components/TaskDetailsModal';
 import Settings from './components/Settings';
 
 const App: React.FC = () => {
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(INITIAL_KANBAN_TASKS);
   const [kanbanColumns, setKanbanColumns] = useState(INITIAL_KANBAN_COLUMNS);
   const [selectedPoint, setSelectedPoint] = useState<ProjectPoint | null>(null);
+  const [editingTask, setEditingTask] = useState<KanbanTask | null>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
 
@@ -113,27 +115,73 @@ const App: React.FC = () => {
       }))
   }, []);
 
-  const handleUpdateTaskStatus = useCallback((taskId: string, sourceColumnId: KanbanColumnId, destColumnId: KanbanColumnId, sourceIndex: number, destIndex: number) => {
+    const handleUpdateTaskStatus = useCallback((taskId: string, sourceColumnId: KanbanColumnId, destColumnId: KanbanColumnId, sourceIndex: number, destIndex: number) => {
         if (sourceColumnId === destColumnId && sourceIndex === destIndex) return;
 
         setKanbanColumns(prevColumns => {
-            const sourceColumn = { ...prevColumns[sourceColumnId] };
-            const destColumn = sourceColumnId === destColumnId ? sourceColumn : { ...prevColumns[destColumnId] };
+            const newColumns = { ...prevColumns };
 
-            const [removed] = sourceColumn.taskIds.splice(sourceIndex, 1);
-            destColumn.taskIds.splice(destIndex, 0, removed);
-            
-            const newColumns = {
-                ...prevColumns,
-                [sourceColumnId]: sourceColumn,
-                [destColumnId]: destColumn,
+            // Remove from source column
+            const sourceTaskIds = Array.from(newColumns[sourceColumnId].taskIds);
+            const [movedTaskId] = sourceTaskIds.splice(sourceIndex, 1);
+            newColumns[sourceColumnId] = {
+                ...newColumns[sourceColumnId],
+                taskIds: sourceTaskIds,
             };
+            
+            // Add to destination column
+            if (sourceColumnId === destColumnId) {
+                // If moving within the same column, the array is already modified
+                sourceTaskIds.splice(destIndex, 0, movedTaskId);
+            } else {
+                const destTaskIds = Array.from(newColumns[destColumnId].taskIds);
+                destTaskIds.splice(destIndex, 0, movedTaskId);
+                newColumns[destColumnId] = {
+                    ...newColumns[destColumnId],
+                    taskIds: destTaskIds,
+                };
+            }
+            
             return newColumns;
         });
 
         setKanbanTasks(prevTasks => prevTasks.map(task => 
             task.id === taskId ? { ...task, column: destColumnId } : task
         ));
+    }, []);
+
+    const handleDeleteTask = useCallback((taskId: string) => {
+        // Use functional updates to avoid stale state issues.
+        
+        // 1. Remove the task from the global task list
+        setKanbanTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    
+        // 2. Remove the task ID from whichever column it's in.
+        setKanbanColumns(prevColumns => {
+            const newColumns = { ...prevColumns };
+            
+            // Find which column contains the taskId and create a new taskIds array for it.
+            for (const columnId in newColumns) {
+                const key = columnId as KanbanColumnId;
+                const originalTaskIds = newColumns[key].taskIds;
+                
+                if (originalTaskIds.includes(taskId)) {
+                    // If the task is found, update this column with a filtered taskIds list.
+                    newColumns[key] = {
+                        ...newColumns[key],
+                        taskIds: originalTaskIds.filter(id => id !== taskId),
+                    };
+                    // Since a task can only be in one column, we can stop.
+                    break; 
+                }
+            }
+            
+            return newColumns;
+        });
+    }, []);
+
+  const handleUpdateTask = useCallback((updatedTask: KanbanTask) => {
+      setKanbanTasks(prev => prev.map(task => (task.id === updatedTask.id ? updatedTask : task)));
   }, []);
   
   const handleLogoUpload = useCallback((logoDataUrl: string) => {
@@ -158,6 +206,7 @@ const App: React.FC = () => {
                         financialData={financialData}
                         onAddCostEntry={addCostEntry}
                         onDeleteCostEntry={deleteCostEntry}
+                        companyLogo={companyLogo}
                     />
                 </section>
                 
@@ -172,6 +221,9 @@ const App: React.FC = () => {
                         teamMembers={TEAM_MEMBERS}
                         onUpdateTaskStatus={handleUpdateTaskStatus}
                         onAddTask={handleAddTask}
+                        onDeleteTask={handleDeleteTask}
+                        onTaskClick={(task) => setEditingTask(task)}
+                        companyLogo={companyLogo}
                     />
                 </section>
 
@@ -189,6 +241,17 @@ const App: React.FC = () => {
           onUpdateStatus={updatePointStatus}
           onUpdateDetails={updatePointDetails}
           onDelete={deletePoint}
+        />
+      )}
+      {editingTask && (
+        <TaskDetailsModal
+            task={editingTask}
+            teamMembers={TEAM_MEMBERS}
+            onClose={() => setEditingTask(null)}
+            onSave={(updatedTask) => {
+                handleUpdateTask(updatedTask);
+                setEditingTask(null);
+            }}
         />
       )}
     </div>
