@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IA Company Cartórios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-primary': '#f3f4f6', // gray-100
+              'brand-secondary': '#ffffff', // white
+              'brand-accent': '#e53e3e',
+              'brand-light': '#64748b', // slate-500
+              'brand-text': '#1e293b',   // slate-800
+              'status-pending': '#718096',
+              'status-progress': '#FBBF24',
+              'status-completed': '#48bb78',
+              'status-alert': '#e53e3e',
+            },
+          },
+        },
+      }
+    </script>
+    <style>html { scroll-behavior: smooth; }</style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "recharts": "https://aistudiocdn.com/recharts@^3.2.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.8.2"
+  }
+}
+</script>
+</head>
+  <body class="bg-brand-primary text-brand-text">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
